@@ -1,9 +1,9 @@
-[README (3).md](https://github.com/user-attachments/files/32974917/README.3.md)
 # Steam Gap Analyzer
 
 A Python tool that pulls game data from Steam, cleans and enriches it, and looks for **underserved genre combinations**: types of games that few developers are making, which could point to gaps in the market.
 
 ## Why
+
 Steam has tens of thousands of games, but they aren't spread evenly across genres. This project asks: *which genre combinations have the least competition?* The next step is to pair that with a predicted-interest signal, so a "gap" means low competition **and** likely player interest, not just "nobody has made this yet."
 
 ## How It Works
@@ -12,10 +12,11 @@ Steam has tens of thousands of games, but they aren't spread evenly across genre
 Steam Web API ──► Clean ──► Enrich (sample) ──► Analyze gaps
 ```
 
-1. **Fetch** (`steam_api.py`): Pulls the full Steam app list (up to 50,000 games) from the `IStoreService/GetAppList` endpoint.
+1. **Fetch** (`steam_api.py`): Pulls the Steam app list (up to 50,000 games in one request) from the `IStoreService/GetAppList` endpoint.
 2. **Clean** (`cleaner.py`): Removes duplicate app IDs and games with missing or blank names.
-3. **Enrich** (`enricher.py`): Takes a random sample and calls the Steam Store `appdetails` API for each game to get its type, price, genres, and Metacritic score. Requests are rate-limited so the tool doesn't overload Steam's servers.
+3. **Enrich** (`enricher.py`): Takes a random sample (100 games by default) and calls the Steam Store `appdetails` API for each one to get its type, price, genres, and Metacritic score. Requests are spaced 0.5 seconds apart so the tool doesn't overload Steam's servers.
 4. **Analyze** (`analyzer.py`): Counts games per genre combination and flags the bottom 25% by count as underserved.
+
 An experimental model (`model.py`) is also included. See **Future Work** below.
 
 ## Project Structure
@@ -24,11 +25,13 @@ An experimental model (`model.py`) is also included. See **Future Work** below.
 |---|---|
 | `steam_api.py` | Entry point: fetches the app list and runs the full pipeline |
 | `cleaner.py` | Data cleaning functions |
-| `enricher.py` | Fetches per-game details from the Steam Store API |
+| `enricher.py` | Fetches per-game details from the Steam Store API; sample size and seed are set at the top |
 | `analyzer.py` | Genre distribution and gap detection |
-| `model.py` | Predictive model (Keras) |
+| `model.py` | Predictive model (Keras), experimental |
+| `requirements.txt` | Python dependencies |
 | `charter.md` | Project scope, definition of done, and what's out of scope |
 | `backlog.md` | Planned work for the modeling phase |
+| `agent-guardrails.md` | Rules I set for using an AI assistant on this project |
 | `reflection.md`, `spring1_reflection.md` | Progress reflections and lessons learned |
 
 ## Getting Started
@@ -56,10 +59,22 @@ python steam_api.py   # fetch, clean, enrich, and find gaps
 python model.py       # experimental: attempt to train the predictive model
 ```
 
+A full run takes about a minute, mostly from the pause between Store API requests.
+
 ## Status
-The core pipeline is complete: it runs end to end, from fetching live Steam data to flagging underserved genre combinations, and the results are reproducible.
+
+The core pipeline is complete: it runs end to end, from fetching live Steam data to flagging underserved genre combinations.
+
+**About repeatability:** the sample uses a fixed random seed, so the same app list always gives the same 100 games. Steam's catalog changes daily, though, so results drift over time as games are added.
+
+## Limitations
+
+- **Small sample:** with 100 games, most genre combinations appear only once, so the bottom-25% cutoff flags many combinations that are rare in the sample but not necessarily rare on Steam. A larger sample would make the gaps more reliable, at the cost of more API calls.
+- **Genre combinations are exact matches:** "Action, Indie" and "Action, Indie, RPG" count as different combinations.
+- **One page of results:** the app list request returns up to 50,000 games and doesn't page through the rest of the catalog.
 
 ## Future Work
+
 The next phase is a predictive model so that a "gap" means low competition **and** likely player interest. `model.py` contains an early version: a Keras neural network that predicts a game's Metacritic score from its genres and price, to be evaluated against a naive per-genre-average baseline using mean absolute error (MAE).
 
 **What I learned so far:** most Steam games don't have a Metacritic score. A random 100-game sample produced only 4 labeled rows, so the model step detects this and skips training rather than fitting on too little data. A better interest signal, like Steam user review scores, would likely fix this.
@@ -72,10 +87,13 @@ Planned steps:
 - [ ] Combine predicted interest with the count-based heuristic for a stronger gap signal
 
 ## Scope
+
 To keep the project focused, it intentionally does **not** fetch details for every game (it uses a rate-limited sample), build a recommendation engine or dashboard, or handle every currency and pricing edge case.
 
 ## Tech
+
 Python, pandas, Requests, Keras/TensorFlow, scikit-learn, Steam Web API
 
 ## Author
+
 Brandon Malave – [GitHub](https://github.com/brandonlmalave)
