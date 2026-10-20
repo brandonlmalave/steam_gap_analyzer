@@ -1,3 +1,5 @@
+
+ 
 import pandas as pd
 from tensorflow import keras
 from sklearn.model_selection import train_test_split
@@ -17,8 +19,8 @@ def price_to_float(price_str):
  
 def prepare_data(df):
     # Only keep rows where we actually have a score to predict
-    df = df.dropna(subset=["metacritic"])
- 
+    df = df.dropna(subset=["metacritic"]).copy()
+
     df["price_num"] = df["price"].apply(price_to_float)
     df = df.dropna(subset=["price_num"])
  
